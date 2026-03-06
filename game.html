@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Memory Game - Human vs Computer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;font-family:Arial;text-align:center;color:white;overflow-x:hidden;
+background: linear-gradient(270deg,#1e3c72,#2a5298,#ff512f,#dd2476);background-size: 600% 600%;animation: gradientBG 12s ease infinite;}
+@keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+body::before{content:"";position:fixed;width:100%;height:100%;background-image:
+radial-gradient(circle at 20% 30%,rgba(255,255,255,0.3) 6px,transparent 7px),
+radial-gradient(circle at 80% 60%,rgba(255,255,255,0.3) 6px,transparent 7px),
+radial-gradient(circle at 50% 90%,rgba(255,255,255,0.3) 6px,transparent 7px);animation:float 20s linear infinite;z-index:-1;}
+@keyframes float{0%{transform:translateY(0);}100%{transform:translateY(-150px);}}
+h1{margin-top:20px;font-size:34px;}
+.mode-container{display:grid;grid-template-columns:repeat(2,160px);column-gap:70px;row-gap:25px;justify-content:center;margin-top:30px;}
+.mode{background:white;color:black;padding:18px;border-radius:12px;cursor:pointer;font-size:20px;transition:0.3s;}
+.mode:hover{transform:scale(1.1);}
+.mode.selected{background:#ff7675;color:white;}
+button{padding:10px 18px;margin:8px;font-size:18px;border:none;border-radius:10px;cursor:pointer;}
+button:hover{transform:scale(1.1);background:#ff7675;color:white;}
+.selectedBtn{background:#00cec9;color:white;}
+.board{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;max-width:600px;margin:20px auto;}
+.card{height:80px;background:#2d3436;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;transition:0.4s;}
+.card:hover{transform:scale(1.1);}
+.open{background:white;color:black;}
+.matched{background:#55efc4;animation:glow 1s infinite;}
+@keyframes glow{0%{box-shadow:0 0 5px #55efc4}50%{box-shadow:0 0 20px #55efc4}100%{box-shadow:0 0 5px #55efc4}}
+.scoreboard{display:flex;justify-content:center;gap:15px;flex-wrap:wrap;margin-top:10px;}
+.playerBox{background:rgba(255,255,255,0.3);backdrop-filter:blur(10px);padding:10px 20px;border-radius:10px;color:black;font-weight:bold;}
+.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;color:black;padding:40px;border-radius:20px;font-size:25px;animation:pop 0.5s;}
+@keyframes pop{0%{transform:scale(0);}100%{transform:scale(1);}}
+@media(max-width:600px){.board{grid-template-columns:repeat(4,1fr);}.card{height:65px;font-size:24px;}.mode-container{grid-template-columns:repeat(2,140px);}}
+</style>
+</head>
+<body>
+
+<h1>🎮 Memory Game</h1>
+
+<div id="home">
+<div class="mode-container">
+<div class="mode" onclick="selectMode('number',this)">🔢 Number</div>
+<div class="mode" onclick="selectMode('color',this)">🎨 Color</div>
+<div class="mode" onclick="selectMode('fruit',this)">🍎 Fruit</div>
+<div class="mode" onclick="selectMode('animal',this)">🐶 Animal</div>
+</div>
+
+<h3>Select Players</h3>
+<button onclick="selectPlayers(1,this)">1</button>
+<button onclick="selectPlayers(2,this)">2</button>
+<button onclick="selectPlayers(3,this)">3</button>
+<button onclick="selectPlayers(4,this)">4</button>
+<br>
+<button onclick="startGame()">Start Game</button>
+</div>
+
+<div id="game" style="display:none">
+<h3 id="timer">Time : 0</h3>
+<div class="scoreboard" id="score"></div>
+<div id="board" class="board"></div>
+<div id="turn"></div>
+</div>
+
+<div id="popup" class="popup">
+<h2 id="winner"></h2>
+<button onclick="location.reload()">Play Again</button>
+</div>
+
+<audio id="flipSound"><source src="https://www.soundjay.com/button/beep-07.wav"></audio>
+<audio id="winSound"><source src="https://www.soundjay.com/human/cheer-01.wav"></audio>
+
+<script>
+let mode, players=2, first=null, second=null, lock=false, currentPlayer=0;
+let scores=[0,0,0,0], time=0, cards=[];
+let autoRunning=false;
+
+setInterval(()=>{document.getElementById("timer").innerHTML="⏱ Time : "+time; time++;},1000);
+
+function selectMode(m,el){
+mode=m;
+document.querySelectorAll(".mode").forEach(b=>b.classList.remove("selected"));
+el.classList.add("selected");
+}
+
+function selectPlayers(p,btn){
+players=p;
+document.querySelectorAll("button").forEach(b=>b.classList.remove("selectedBtn"));
+btn.classList.add("selectedBtn");
+if(p==1){players=2; autoRunning=true;} else autoRunning=false;
+}
+
+function startGame(){
+if(!mode){alert("Select Mode");return;}
+document.getElementById("home").style.display="none";
+document.getElementById("game").style.display="block";
+createBoard();
+updateScore();
+if(autoRunning && currentPlayer==1) setTimeout(autoPlayerMove,800);
+}
+
+function getSymbols(){
+if(mode=="number") return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17];
+if(mode=="color") return ["🔴","🔵","🟢","🟡","🟣","🟠","⚫","⚪","🟥","🟦","🟩","🟨","🟪","🟧","⬛","⬜","🔶"];
+if(mode=="fruit") return ["🍎","🍌","🍇","🍓","🍍","🥝","🍒","🍑","🥭","🍉","🍋","🍊","🍐","🥥","🍈","🍏","🫐"];
+if(mode=="animal") return ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦"];
+}
+
+function createBoard(){
+let board=document.getElementById("board"); board.innerHTML="";
+let symbols=getSymbols(); cards=[];
+for(let i=0;i<17;i++){cards.push(symbols[i]);cards.push(symbols[i]);}
+// shuffle
+for(let i=cards.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1)); [cards[i],cards[j]]=[cards[j],cards[i]];}
+cards.forEach((sym,index)=>{
+let div=document.createElement("div"); div.className="card"; div.innerHTML="?";
+div.dataset.index=index;
+div.onclick=function(){playerFlip(div,sym)};
+board.appendChild(div);
+});
+}
+
+function playerFlip(card,sym){
+if(lock || card.classList.contains("open") || card.classList.contains("matched") || (autoRunning && currentPlayer==1)) return;
+document.getElementById("flipSound").play();
+card.innerHTML=sym; card.classList.add("open");
+if(!first){first={card,sym};} else{second={card,sym}; lock=true; setTimeout(checkMatch,700);}
+}
+
+function checkMatch(){
+if(first.sym==second.sym){
+first.card.classList.add("matched"); second.card.classList.add("matched");
+scores[currentPlayer]++;
+}else{
+first.card.innerHTML="?"; second.card.innerHTML="?";
+first.card.classList.remove("open"); second.card.classList.remove("open");
+currentPlayer=(currentPlayer+1)%players;
+}
+first=null; second=null; lock=false;
+updateScore();
+checkWinner();
+if(autoRunning && currentPlayer==1) setTimeout(autoPlayerMove,700);
+}
+
+function updateScore(){
+let text=""; for(let i=0;i<players;i++){text+=`<div class="playerBox">Player ${i+1}<br>⭐ ${scores[i]}</div>`;}
+document.getElementById("score").innerHTML=text;
+document.getElementById("turn").innerHTML="🎯 Turn : Player "+(currentPlayer+1);
+}
+
+function checkWinner(){
+let matched=document.querySelectorAll(".matched").length;
+if(matched==34){document.getElementById("winSound").play();
+let max=Math.max(...scores);
+let winner=scores.indexOf(max)+1;
+document.getElementById("winner").innerHTML="🏆 Player "+winner+" Wins!";
+document.getElementById("popup").style.display="block";
+autoRunning=false;
+}
+}
+
+// Auto Player
+function autoPlayerMove(){
+if(!autoRunning) return;
+let available = cards.filter(c=>!c.classList.contains("matched") && !c.classList.contains("open"));
+if(available.length==0) return;
+
+let firstPick = available[Math.floor(Math.random()*available.length)];
+firstPick.click();
+
+setTimeout(()=>{
+available = cards.filter(c=>!c.classList.contains("matched") && !c.classList.contains("open") && c!=firstPick);
+let secondPick = available[Math.floor(Math.random()*available.length)];
+secondPick.click();
+},700);
+}
+</script>
+
+</body>
+</html>
